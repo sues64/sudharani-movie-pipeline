@@ -9,8 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
   EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
 
 jobs:
@@ -67,23 +66,23 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build frontend Docker image
         env:
-          ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
           docker build \
             --build-arg=REACT_APP_MOVIE_API_URL=${{ secrets.REACT_APP_MOVIE_API_URL }} \
-            --tag "$ECR_REGISTRY:${{ github.sha }}" .
+            --tag $ECR_REPOSITORY:${{ github.sha }} .
 
       - name: Push frontend Docker image
         env:
-          ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
-          docker push "$ECR_REGISTRY:${{ github.sha }}"
+          docker push $ECR_REPOSITORY:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -100,7 +99,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - uses: azure/setup-kubectl@v4
 
@@ -109,6 +108,8 @@ jobs:
           aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
 
       - name: Update Kubernetes image
+        env:
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
           sed -i "s|image: frontend|image: $ECR_REPOSITORY:${{ github.sha }}|g" deployment.yaml
           echo "Updated frontend image:"
