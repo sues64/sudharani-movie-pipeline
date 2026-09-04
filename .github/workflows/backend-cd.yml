@@ -1,0 +1,67 @@
+name: Backend CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'starter/backend/**'
+      - '.github/workflows/backend-cd.yml'
+
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          cd starter/backend
+          python -m pip install --upgrade pip
+          pip install pipenv flake8 pytest
+          pipenv install --dev --system
+
+      - name: Lint Backend
+        run: |
+          cd starter/backend
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Test Backend
+        run: |
+          cd starter/backend
+          pytest
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Docker Build and Push
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ECR_REPOSITORY_BACKEND }}
+          IMAGE_TAG: latest
+        run: |
+          cd starter/backend
+          docker build -t $ECR_REGISTRY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY:$IMAGE_TAG
+
+      - name: Update Kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name cluster
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f starter/backend/k8s/
