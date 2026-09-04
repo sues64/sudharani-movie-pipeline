@@ -70,13 +70,17 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: aws-actions/amazon-ecr-login@v2
 
-      - run: |
-          docker build --tag $ECR_REPOSITORY:${{ github.sha }} .
-          docker push $ECR_REPOSITORY:${{ github.sha }}
+      - name: Build and Push backend Docker image
+        env:
+          ECR_REGISTRY: ${{ secrets.BACKEND_ECR_REPOSITORY }}
+        run: |
+          docker build --tag "$ECR_REGISTRY:${{ github.sha }}" .
+          docker push "$ECR_REGISTRY:${{ github.sha }}"
 
   deploy:
     runs-on: ubuntu-latest
