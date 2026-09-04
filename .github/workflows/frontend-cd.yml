@@ -50,10 +50,12 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Docker Build and Push
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
           cd starter/frontend
-          docker build -t ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}:latest .
-          docker push ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}:latest
+          docker build -t "$ECR_REGISTRY:latest" .
+          docker push "$ECR_REGISTRY:latest"
 
       - name: Update Kubeconfig
         run: |
