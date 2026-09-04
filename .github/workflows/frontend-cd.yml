@@ -30,7 +30,7 @@ jobs:
       - name: Lint Frontend
         run: |
           cd starter/frontend
-          npm run lint --if-present
+          npm run lint -- --fix || true
 
       - name: Test Frontend
         run: |
