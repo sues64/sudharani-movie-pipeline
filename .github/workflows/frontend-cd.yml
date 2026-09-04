@@ -103,6 +103,14 @@ jobs:
 
       - uses: azure/setup-kubectl@v4
 
+      # ADD THE DEBUG STEP HERE
+      - name: Debug AWS/EKS Configuration
+        run: |
+          echo "Cluster Name: $EKS_CLUSTER_NAME"
+          echo "Region: $AWS_REGION"
+          aws eks list-clusters --region "$AWS_REGION"
+
+      # THIS IS THE STEP THAT WAS FAILING
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
