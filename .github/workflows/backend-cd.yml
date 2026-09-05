@@ -102,7 +102,7 @@ jobs:
 
       - name: Update Kubernetes image
         env:
-          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_BACKEND }}
+          ECR_REPOSITORY: backend
         run: |
           sed -i "s|image: backend|image: $ECR_REPOSITORY:${{ github.sha }}|g" deployment.yaml
           echo "Updated backend image:"
