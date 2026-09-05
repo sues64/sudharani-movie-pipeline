@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
+import axios from 'axios';
 
 function MovieList({ onMovieClick }) {
   const [movies, setMovies] = useState([]);
@@ -13,7 +13,7 @@ function MovieList({ onMovieClick }) {
         setMovies(Array.isArray(movieList) ? movieList : []);
       })
       .catch((error) => {
-        console.error("Error Fetching movies:", error);
+        console.error('Error Fetching movies:', error);
         setMovies([]);
       });
   }, []);
