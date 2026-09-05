@@ -15,7 +15,7 @@ RUN npm ci
 COPY . .
 
 # Build the app
-RUN CI npm run build
+RUN CI=true npm run build
 
 # Expose the port used by the React app
 EXPOSE 3000
