@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import axios from "axios";
 
 function MovieList({ onMovieClick }) {
   const [movies, setMovies] = useState([]);
@@ -13,7 +13,7 @@ function MovieList({ onMovieClick }) {
         setMovies(Array.isArray(movieList) ? movieList : []);
       })
       .catch((error) => {
-        console.error('Error Fetching movies:', error);
+        console.error("Error Fetching movies:", error);
         setMovies([]);
       });
   }, []);
@@ -21,7 +21,11 @@ function MovieList({ onMovieClick }) {
   return (
     <ul>
       {(movies || []).map((movie) => (
-        <li className="movieItem" key={movie.id || movie._id} onClick={() => onMovieClick(movie)}>
+        <li
+          className="movieItem"
+          key={movie.id || movie._id}
+          onClick={() => onMovieClick(movie)}
+        >
           {movie.title}
         </li>
       ))}
@@ -30,8 +34,7 @@ function MovieList({ onMovieClick }) {
 }
 
 MovieList.propTypes = {
-  onMovieClick: PropTypes.func.isRequired
+  onMovieClick: PropTypes.func.isRequired,
 };
-
 
 export default MovieList;
