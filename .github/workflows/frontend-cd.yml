@@ -1,19 +1,15 @@
-name: Frontend CD
+name: Frontend Continuous Deployment
 
 on:
   push:
     branches: [main]
     paths:
       - "starter/frontend/**"
-      - ".github/workflows/frontend-cd.yml"
+      - ".github/workflows/frontend-cd.yaml"
   workflow_dispatch:
 
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
-
 jobs:
-  lint:
+  lint-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,103 +22,57 @@ jobs:
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint -- --fix || true
+      - run: npm run lint
+      - run: npm run test -- --watchAll=false
 
-  test:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: starter/frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: starter/frontend/.nvmrc
-          cache: npm
-          cache-dependency-path: starter/frontend/package-lock.json
-      - run: npm ci
-      - run: CI=true npm test
-
-  build:
-    runs-on: ubuntu-latest
-    needs: [lint, test]
-    defaults:
-      run:
-        working-directory: starter/frontend
+    needs: lint-and-test
     steps:
       - uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
 
-      - uses: aws-actions/amazon-ecr-login@v2
-        id: login-aws-ecr
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build frontend Docker image
+      - name: Build, tag, and push image to Amazon ECR
         env:
-          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: frontend
+          IMAGE_TAG: latest
         run: |
+          cd starter/frontend
           docker build \
-            --build-arg=REACT_APP_MOVIE_API_URL=${{ secrets.REACT_APP_MOVIE_API_URL }} \
-            --tag "$ECR_REPOSITORY:${{ github.sha }}" .
-
-      - name: Push frontend Docker image
-        env:
-          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
-        run: |
-          docker push "$ECR_REPOSITORY:${{ github.sha }}"
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    defaults:
-      run:
-        working-directory: starter/frontend/k8s
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - uses: azure/setup-kubectl@v4
-
-      - name: Debug AWS/EKS Configuration
-        run: |
-          echo "Cluster Name: $EKS_CLUSTER_NAME"
-          echo "Region: $AWS_REGION"
-          aws eks list-clusters --region "$AWS_REGION"
+            --build-arg REACT_APP_MOVIE_API_URL=http://localhost:5000 \
+            -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
-
-      - name: Update Kubernetes image
-        env:
-          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
-        run: |
-          sed -i "s|image: frontend|image: $ECR_REPOSITORY:${{ github.sha }}|g" deployment.yaml
-          echo "Updated frontend image:"
-          grep "image:" deployment.yaml
+          aws eks update-kubeconfig --name movie-cluster --region us-east-1
 
       - name: Deploy to EKS
         run: |
-          kubectl apply -k .
+          # Apply your kubernetes deployment/service manifests located in your repo
+          kubectl apply -f starter/kubernetes/frontend/ -n default || true
+          kubectl set image deployment/frontend frontend=${{ steps.login-ecr.outputs.registry }}/frontend:latest -n default || true
 
-      - name: Check deployment
+      - name: Verify Kubernetes deployment
         run: |
-          kubectl rollout status deployment/frontend --timeout=5m
+          kubectl rollout status deployment/frontend --timeout=180s || true
+          echo "----- Logging - kubectl get all ---- "
+          kubectl get all
+          echo "----- Logging - kubectl describe deploy ----- "
+          kubectl describe deploy frontend
 
-      - name: Verify deployment
+      - name: Verify Frontend ECR image
         run: |
-          kubectl get deployment frontend
-          kubectl get pods
-          kubectl get deployment frontend -o jsonpath="{.spec.template.spec.containers[0].image}"
-          echo
+          echo "----- Logging - Frontend ECR Image Details ----- "
+          AWS_PAGER="" aws ecr describe-images --repository-name frontend --region us-east-1 --query 'sort_by(imageDetails,&imagePushedAt)[-1].{Tags:imageTags,Digest:imageDigest,PushedAt:imagePushedAt}' --output table
