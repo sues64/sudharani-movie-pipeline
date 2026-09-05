@@ -71,14 +71,17 @@ jobs:
       - uses: aws-actions/amazon-ecr-login@v2
         id: login-aws-ecr
 
-      - name: Build and Push frontend Docker image
+      - name: Build frontend Docker image
         env:
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
           docker build \
             --build-arg=REACT_APP_MOVIE_API_URL=${{ secrets.REACT_APP_MOVIE_API_URL }} \
             --tag "$ECR_REPOSITORY:${{ github.sha }}" .
-          docker push "$ECR_REPOSITORY:${{ github.sha }}"
+            
+    - name: Push frontend Docker image
+      run:
+        docker push "$ECR_REPOSITORY:${{ github.sha }}"
 
   deploy:
     runs-on: ubuntu-latest
