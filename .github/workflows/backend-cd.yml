@@ -83,7 +83,6 @@ jobs:
     defaults:
       run:
         working-directory: starter/backend/k8s
-
     steps:
       - uses: actions/checkout@v4
 
@@ -94,6 +93,9 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: login-aws-ecr
+
       - uses: azure/setup-kubectl@v4
 
       - name: Update kubeconfig
@@ -102,9 +104,10 @@ jobs:
 
       - name: Update Kubernetes image
         env:
+          ECR_REGISTRY: ${{ steps.login-aws-ecr.outputs.registry }}
           ECR_REPOSITORY: backend
         run: |
-          sed -i "s|image: backend|image: $ECR_REPOSITORY:${{ github.sha }}|g" deployment.yaml
+          sed -i "s|image: backend|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ github.sha }}|g" deployment.yaml
           echo "Updated backend image:"
           grep "image:" deployment.yaml
 
@@ -114,7 +117,14 @@ jobs:
 
       - name: Check deployment
         run: |
-          kubectl rollout status deployment/backend --timeout=5m
+          kubectl rollout status deployment/backend --timeout=10m
+
+      - name: Diagnose deployment status if failed
+        if: failure()
+        run: |
+          kubectl describe deployment backend
+          kubectl get pods -l app=backend -o wide
+          kubectl logs -l app=backend --tail=50 || true
 
       - name: Verify deployment
         run: |
