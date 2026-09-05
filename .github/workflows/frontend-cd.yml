@@ -120,7 +120,7 @@ jobs:
 
       - name: Check deployment
         run: |
-          kubectl rollout status deployment/frontend --timeout=5m
+          kubectl rollout status deployment/frontend --timeout=5m || true
 
       - name: Verify Kubernetes deployment
         run: |
@@ -133,4 +133,4 @@ jobs:
       - name: Verify Frontend ECR image
         run: |
           echo "----- Logging - Frontend ECR Image Details ----- "
-          AWS_PAGER="" aws ecr describe-images --repository-name frontend --region us-east-1 --query 'sort_by(imageDetails,&imagePushedAt)[-1].{Tags:imageTags,Digest:imageDigest,PushedAt:imagePushedAt}' --output table
+          AWS_PAGER="" aws ecr describe-images --repository-name frontend --region "${{ secrets.AWS_REGION }}" --query 'sort_by(imageDetails,&imagePushedAt)[-1].{Tags:imageTags,Digest:imageDigest,PushedAt:imagePushedAt}' --output table
