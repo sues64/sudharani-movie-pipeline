@@ -69,6 +69,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - uses: aws-actions/amazon-ecr-login@v2
+        id: login-aws-ecr
 
       - name: Build frontend Docker image
         env:
@@ -77,11 +78,6 @@ jobs:
           docker build \
             --build-arg=REACT_APP_MOVIE_API_URL=${{ secrets.REACT_APP_MOVIE_API_URL }} \
             --tag "$ECR_REPOSITORY:${{ github.sha }}" .
-
-      - name: Push frontend Docker image
-        env:
-          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
-        run: |
           docker push "$ECR_REPOSITORY:${{ github.sha }}"
 
   deploy:
