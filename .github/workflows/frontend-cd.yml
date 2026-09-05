@@ -71,7 +71,7 @@ jobs:
       - uses: aws-actions/amazon-ecr-login@v2
         id: login-aws-ecr
 
-      - name: Build frontend Docker image
+      - name: Build and Push frontend Docker image
         env:
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
