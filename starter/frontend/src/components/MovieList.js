@@ -20,12 +20,8 @@ function MovieList({ onMovieClick }) {
 
   return (
     <ul>
-      {movies?.map((movie) => (
-        <li
-          className="movieItem"
-          key={movie.id || movie._id}
-          onClick={() => onMovieClick(movie)}
-        >
+      {(movies || []).map((movie) => (
+        <li className="movieItem" key={movie.id || movie._id} onClick={() => onMovieClick(movie)}>
           {movie.title}
         </li>
       ))}
