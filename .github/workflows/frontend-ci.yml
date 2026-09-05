@@ -1,11 +1,11 @@
-name: Frontend CI
+name: Frontend Continuous Integration
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "starter/frontend/**"
-      - ".github/workflows/frontend-ci.yml"
+      - ".github/workflows/frontend-ci.yaml"
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint -- --fix || true
+      - run: npm run lint
 
   test:
     runs-on: ubuntu-latest
@@ -37,7 +37,7 @@ jobs:
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
       - run: npm ci
-      - run: CI=true npm test
+      - run: npm run test -- --watchAll=false
 
   build:
     runs-on: ubuntu-latest
@@ -53,4 +53,9 @@ jobs:
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npm run test -- --watchAll=false
+      - name: Build frontend Docker image
+        run: |
+          docker build \
+            --build-arg REACT_APP_MOVIE_API_URL=http://localhost:5000 \
+            -t frontend:latest .
