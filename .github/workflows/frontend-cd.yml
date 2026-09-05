@@ -18,18 +18,14 @@ jobs:
     defaults:
       run:
         working-directory: starter/frontend
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: starter/frontend/.nvmrc
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
-
       - run: npm ci
-
       - run: npm run lint -- --fix || true
 
   test:
@@ -37,18 +33,14 @@ jobs:
     defaults:
       run:
         working-directory: starter/frontend
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: starter/frontend/.nvmrc
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
-
       - run: npm ci
-
       - run: CI=true npm test
 
   build:
@@ -57,7 +49,6 @@ jobs:
     defaults:
       run:
         working-directory: starter/frontend
-
     steps:
       - uses: actions/checkout@v4
 
@@ -78,10 +69,12 @@ jobs:
           docker build \
             --build-arg=REACT_APP_MOVIE_API_URL=${{ secrets.REACT_APP_MOVIE_API_URL }} \
             --tag "$ECR_REPOSITORY:${{ github.sha }}" .
-            
-    - name: Push frontend Docker image
-      run:
-        docker push "$ECR_REPOSITORY:${{ github.sha }}"
+
+      - name: Push frontend Docker image
+        env:
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
+        run: |
+          docker push "$ECR_REPOSITORY:${{ github.sha }}"
 
   deploy:
     runs-on: ubuntu-latest
@@ -89,7 +82,6 @@ jobs:
     defaults:
       run:
         working-directory: starter/frontend/k8s
-
     steps:
       - uses: actions/checkout@v4
 
@@ -102,14 +94,12 @@ jobs:
 
       - uses: azure/setup-kubectl@v4
 
-      # ADD THE DEBUG STEP HERE
       - name: Debug AWS/EKS Configuration
         run: |
           echo "Cluster Name: $EKS_CLUSTER_NAME"
           echo "Region: $AWS_REGION"
           aws eks list-clusters --region "$AWS_REGION"
 
-      # THIS IS THE STEP THAT WAS FAILING
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
