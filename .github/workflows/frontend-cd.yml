@@ -97,12 +97,18 @@ jobs:
       - uses: azure/setup-kubectl@v4
 
       - name: Debug AWS/EKS Configuration
+        env:
+          EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           echo "Cluster Name: $EKS_CLUSTER_NAME"
           echo "Region: $AWS_REGION"
           aws eks list-clusters --region "$AWS_REGION"
 
       - name: Update kubeconfig
+        env:
+          EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
 
@@ -110,18 +116,14 @@ jobs:
         env:
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
-          sed -i "s|image: frontend|image: $ECR_REPOSITORY:${{ github.sha }}|g" deployment.yaml
-          echo "Updated frontend image:"
+          sed -i "s|image: .*|image: $ECR_REPOSITORY:${{ github.sha }}|g" deployment.yaml
+          echo "Updated deployment.yaml image tag:"
           grep "image:" deployment.yaml
 
       - name: Deploy to EKS
         run: |
           kubectl apply -k .
-
-      - name: Check deployment
-        run: |
-          kubectl rollout status deployment/frontend --timeout=5m || true
-
+      
       - name: Verify Kubernetes deployment
         run: |
           kubectl rollout status deployment/frontend --timeout=180s || true
