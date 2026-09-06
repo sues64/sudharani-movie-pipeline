@@ -95,6 +95,8 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - uses: azure/setup-kubectl@v4
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: login-aws-ecr
 
       - name: Debug AWS/EKS Configuration
         env:
@@ -114,9 +116,10 @@ jobs:
 
       - name: Update Kubernetes image
         env:
+          ECR_REGISTRY: ${{ steps.login-aws-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_FRONTEND }}
         run: |
-          sed -i "s|image: .*|image: $ECR_REPOSITORY:${{ github.sha }}|g" deployment.yaml
+          sed -i "s|image: frontend|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ github.sha }}|g" deployment.yaml
           echo "Updated deployment.yaml image tag:"
           grep "image:" deployment.yaml
 
@@ -126,7 +129,7 @@ jobs:
       
       - name: Verify Kubernetes deployment
         run: |
-          kubectl rollout status deployment/frontend --timeout=180s || true
+          kubectl rollout status deployment/frontend --timeout=180s
           echo "----- Logging - kubectl get all ---- "
           kubectl get all
           echo "----- Logging - kubectl describe deploy ----- "
